@@ -109,7 +109,9 @@ for (const theme of THEMES) {
   await evaluate(sampler); // the theme switch performed a full reload
   for (const route of ROUTES) {
     await send('Page.navigate', { url: `${PAGE_URL}#/${route}` });
-    await waitFor(`location.hash === '#/${route}' && !!document.querySelector('main#main')`);
+    await waitFor(
+      `location.hash === '#/${route}' && !!document.querySelector('main#main h1')`,
+    );
     await sleep(900);
     await send('Page.bringToFront');
     const shot = await send('Page.captureScreenshot', {

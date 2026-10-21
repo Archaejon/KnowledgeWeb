@@ -33,8 +33,8 @@ avoid mistaking glyph antialiasing for the surface.
 
 | Check | Result |
 | --- | --- |
-| axe-core page audits | **63 audits, 0 violations** (2,619 rule passes) |
-| Rendered contrast | **36 page/theme combinations, 2,685 text boxes, 0 below threshold** |
+| axe-core page audits | **63 audits, 0 violations** (2,622 rule passes) |
+| Rendered contrast | **36 page/theme combinations, 2,679 text boxes, 0 below threshold** |
 | Token matrix | **90 pairings (30 × 3 themes), 0 below 4.5:1** |
 | Reflow | 0 px horizontal overflow at 320 px and at 640 px (≈200 % zoom) |
 | Target sizes | Smallest interactive target is now 24 × 24 px |
@@ -233,7 +233,10 @@ browser needed by the voice-note probe and every output file are described in
 Results are written next to the scripts as `a11y-results.json`,
 `a11y-contrast-results.json` and `a11y-probe2-results.json`.
 `probe-inert.mjs` prints 16 checks (including navigation out of a dialog) and
-exits non-zero on failure. The scripts
+exits non-zero on failure. `a11y-audit.mjs` exits non-zero on any violation or on
+a page that fails to render, so it can gate a pipeline. Because routes are loaded
+as separate chunks, it audits each route as a fresh document load and waits for
+the view itself, not just the app shell. The scripts
 assume the sample data and open a fresh tab per run; they do not modify node data.
 
 ## Visual check

@@ -166,30 +166,41 @@ export class NodeStore {
   constructor(private readonly storage: StorageAdapter = new MemoryStorageAdapter()) {
     this.storageKind = storage.kind;
     let loaded: StoreSnapshot | null = null;
-    let notice: string | undefined;
+    let raw: string | null = null;
+    let problem: string | undefined;
     try {
-      const raw = storage.load();
+      raw = storage.load();
       if (raw) {
         const parsed = JSON.parse(raw) as unknown;
         const result = validatePersistedState(parsed);
         if (result.ok) {
           loaded = parsed as StoreSnapshot;
         } else {
-          notice = `Saved node data could not be loaded (${result.errors[0]}). Sample data was restored instead.`;
+          problem = `Saved node data could not be loaded (${result.errors[0]}).`;
         }
       }
     } catch {
-      notice = 'Saved node data was unreadable. Sample data was restored instead.';
+      problem = 'Saved node data was unreadable.';
     }
 
+    // Never overwrite data we could not read. Take a copy first, then say where
+    // it went. If no copy could be kept, leave the original untouched rather
+    // than replacing a person's node with sample data on start-up.
+    const preserved = problem && raw ? (this.storage.preserve?.(raw) ?? null) : null;
+    const notice = problem
+      ? preserved
+        ? `${problem} A copy is kept as ${preserved} and sample data was opened instead.`
+        : `${problem} Sample data was opened instead, and the unreadable copy was left in place.`
+      : undefined;
+
     this.snapshot = loaded
-      ? { ...loaded, loadNotice: notice }
+      ? { ...loaded, loadNotice: undefined }
       : {
           data: createSampleData(),
           settings: createDefaultSettings(),
           loadNotice: notice,
         };
-    this.persist();
+    if (!problem || preserved) this.persist();
   }
 
   getSnapshot = (): StoreSnapshot => this.snapshot;

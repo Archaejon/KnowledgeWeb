@@ -13,6 +13,7 @@ dist/
 !.tooling/a11y-probe2.mjs
 !.tooling/probe-inert.mjs
 !.tooling/probe-knowledge-files.mjs
+!.tooling/serve-dist.mjs
 
 *.local
 *.tsbuildinfo

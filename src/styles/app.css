@@ -717,6 +717,8 @@ p code { border: none; background: var(--surface-3); }
 
 .muted { color: var(--muted); }
 .small { font-size: 0.8rem; }
+/* Suspense fallback for a route chunk that is still loading. */
+.page-loading { padding: 34px 0; }
 .tiny { font-size: 0.7rem; }
 .nowrap { white-space: nowrap; }
 .text-link {

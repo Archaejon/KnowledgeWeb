@@ -146,7 +146,7 @@ export function Layout({ children, page }: { children: ReactNode; page: PageName
             <Icon name="info" size={14} /> About this prototype
           </Link>
           <p className="sidebar-version">
-            v0.1.0 · local-first prototype · AGPL-3.0
+            v{__APP_VERSION__} · local-first prototype · AGPL-3.0
           </p>
         </div>
       </aside>

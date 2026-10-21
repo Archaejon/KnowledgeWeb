@@ -5,6 +5,24 @@
   "type": "module",
   "description": "Understory — a local-first, consent-based knowledge exchange node for real-world communities",
   "license": "AGPL-3.0-or-later",
+  "homepage": "https://codeberg.org/Archaejon/KnowledgeWeb#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://codeberg.org/Archaejon/KnowledgeWeb.git"
+  },
+  "bugs": {
+    "url": "https://codeberg.org/Archaejon/KnowledgeWeb/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "local-first",
+    "consent",
+    "knowledge-exchange",
+    "communities",
+    "react"
+  ],
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5178 --strictPort",
     "build": "tsc -b && vite build",

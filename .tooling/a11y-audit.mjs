@@ -151,12 +151,21 @@ const runAxe = async () => {
 
 const results = [];
 const audit = async (route, theme, viewport) => {
-  const url = `${BASE}/#/${route}`;
-  await send('Page.navigate', { url });
-  await waitFor(`!!document.querySelector('main#main') && location.hash === '#/${route}'`);
-  await sleep(450);
+  // A unique query means every audit is a fresh document load at the target
+  // route. Routes are code-split, and an in-app hash change would let axe run
+  // against the previous view or the loading fallback; this keeps the unit of
+  // measurement unambiguous. In-app navigation is probed by a11y-probe2.mjs.
+  const url = `${BASE}/?a11y=${Date.now()}#/${route}`;
   const label = `${viewport.name} ${theme} /${route}`;
   try {
+    await send('Page.navigate', { url });
+    const rendered = await waitFor(`(() => {
+      if (location.hash !== '#/${route}') return false;
+      if (document.querySelector('.page-loading')) return false;
+      return Boolean(document.querySelector('main#main h1'));
+    })()`, 15000);
+    if (!rendered) throw new Error('the view did not render within 15s');
+    await sleep(450);
     const res = await runAxe();
     results.push({ label, route, theme, viewport: viewport.name, ...res });
     const v = res.violations.length;
@@ -219,7 +228,10 @@ for (const e of summary) {
   console.log(`   e.g. ${e.samples.join(' | ')}`);
   console.log(`   on ${e.pageCount} page/theme combos`);
 }
-console.log(`\n${results.length} page audits · ${results.reduce((n, r) => n + (r.violations?.length ?? 0), 0)} violating rules total`);
+const errors = results.filter((r) => r.error).length;
+const violations = results.reduce((n, r) => n + (r.violations?.length ?? 0), 0);
+console.log(`\n${results.length} page audits · ${violations} violating rules total · ${errors} failed to render`);
+if (violations > 0 || errors > 0) process.exitCode = 1;
 ws.close();
 const closeTarget = await fetch(`${CDP}/json/close/${target.id}`);
 console.log('closed target', closeTarget.status);

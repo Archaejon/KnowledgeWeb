@@ -3,7 +3,7 @@
  *
  * Everything here is plain JSON so a node's database can be exported,
  * inspected, signed, or moved onto another transport without touching UI code.
- * See docs/data-model.md.
+ * See docs/architecture.md#data-model.
  */
 
 export const SCHEMA_VERSION = 1;

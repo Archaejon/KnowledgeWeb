@@ -33,6 +33,16 @@ const evaluate = async (expression) => {
   return response.result?.result?.value;
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Routes are code-split, so the page under test may need a moment (and a module
+// request) before its triggers exist. Wait for the condition, not a fixed delay.
+const waitFor = async (expression, timeout = 10000) => {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    if (await evaluate(expression)) return true;
+    if (Date.now() > deadline) return false;
+    await sleep(100);
+  }
+};
 const press = async (key, code, windowsVirtualKeyCode) => {
   await send('Input.dispatchKeyEvent', {
     type: 'rawKeyDown',
@@ -64,7 +74,10 @@ await send('Emulation.setDeviceMetricsOverride', {
   deviceScaleFactor: 1,
   mobile: false,
 });
-await sleep(1600);
+const rendered = await waitFor(
+  `Boolean([...document.querySelectorAll('button')].find((el) => el.textContent.trim() === 'Create community'))`,
+);
+if (!rendered) throw new Error('Communities view did not render its Create community trigger');
 
 const trigger = await evaluate(`(() => {
   const button = [...document.querySelectorAll('button')].find((el) => el.textContent.trim() === 'Create community');

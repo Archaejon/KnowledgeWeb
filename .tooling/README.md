@@ -54,6 +54,21 @@ chrome --remote-debugging-port=9223 \
        --autoplay-policy=no-user-gesture-required
 ```
 
+## Build check
+
+`serve-dist.mjs` is not an audit. It serves `dist/` under a subpath so the
+production build can be checked the way a Codeberg Pages project site serves it,
+including the router, the route chunks, the favicon and the manifest:
+
+```bash
+npm run build
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs   # http://127.0.0.1:4190/KnowledgeWeb/
+```
+
+The prefix is read from `PREFIX` because Git Bash rewrites an argument that looks
+like a POSIX path into a Windows path. No browser debugging port is needed for
+this one; open the page normally.
+
 ## Reading results
 
 The dev server and the browser must already be up; the scripts open a fresh tab
@@ -64,9 +79,12 @@ per run and leave it open, so close the extra tabs when you are done.
   from `a11y-summary.json`.
 - `a11y-contrast.mjs` reports every sampled text box that falls below 4.5:1
   (3:1 for large text) and writes the full sample set.
-- The interaction probes and `probe-inert.mjs` print one line per check. Only
-  `probe-inert.mjs` and `probe-knowledge-files.mjs` set a non-zero exit code,
-  so the others must be read rather than trusted to fail a pipeline.
+- The interaction probes and `probe-inert.mjs` print one line per check.
+  `a11y-audit.mjs`, `probe-inert.mjs` and `probe-knowledge-files.mjs` set a
+  non-zero exit code; the remaining probes must be read rather than trusted to
+  fail a pipeline.
+- `a11y-audit.mjs` and `a11y-contrast.mjs` load each route as a fresh document and
+  wait for the route chunk, because every page except Home is code-split.
 - The probes assume the sample data and the default acting identity. Restore
   it with **Node settings → Reset sample data** if a previous run changed it.
 

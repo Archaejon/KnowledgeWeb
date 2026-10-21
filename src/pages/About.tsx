@@ -153,7 +153,7 @@ export function AboutPage() {
             <li>Storage: <code>src/core/storage.ts</code>, <code>NodeStore</code>.</li>
             <li>Access and consent: <code>src/core/access.ts</code>, <code>consent.ts</code>.</li>
             <li>AI boundary: <code>src/core/ai/</code>.</li>
-            <li>Data model: <code>src/core/types.ts</code>, <code>docs/data-model.md</code>.</li>
+            <li>Data model: <code>src/core/types.ts</code>, <code>docs/architecture.md</code>.</li>
             <li>Architecture and threat notes: <code>docs/architecture.md</code>, <code>docs/threat-model.md</code>.</li>
           </ul>
           <p className="muted small">
@@ -187,8 +187,8 @@ export function AboutPage() {
           feed or a substitute for showing up.
         </p>
         <p className="muted small">
-          Node: {snapshot.data.node.name} · schema v{snapshot.data.schemaVersion} · v
-          {snapshot.data.node.softwareVersion} · AGPL-3.0-or-later.
+          Node: {snapshot.data.node.name} · schema v{snapshot.data.schemaVersion} · Understory{' '}
+          v{__APP_VERSION__} · AGPL-3.0-or-later.
         </p>
       </Card>
     </div>

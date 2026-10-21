@@ -3,6 +3,7 @@ import { canRead, visibleKnowledge } from '../src/core/access';
 import { groupAgreementStatus, relationshipFor } from '../src/core/consent';
 import { NodeStore } from '../src/core/store';
 import { MemoryStorageAdapter } from '../src/core/storage';
+import type { StorageAdapter } from '../src/core/storage';
 import { createSampleData } from '../src/core/sample';
 import { validatePersistedState } from '../src/core/validation';
 import type { KnowledgeInput } from '../src/core/store';
@@ -244,5 +245,58 @@ describe('persistence and settings', () => {
     const invalid = structuredClone(valid);
     invalid.settings.actorId = 'p-nobody';
     expect(validatePersistedState(invalid).ok).toBe(false);
+  });
+});
+
+/** A minimal adapter without `preserve`, to prove the store does not overwrite. */
+class PlainAdapter implements StorageAdapter {
+  readonly kind = 'plain';
+  writes = 0;
+  constructor(public value: string | null) {}
+  load() {
+    return this.value;
+  }
+  save(value: string) {
+    this.writes += 1;
+    this.value = value;
+  }
+  clear() {
+    this.value = null;
+  }
+}
+
+describe('unreadable saved data', () => {
+  it('keeps a copy of truncated data and says where it went', () => {
+    const storage = new MemoryStorageAdapter();
+    const truncated = '{"schemaVersion":1,"data":';
+    storage.save(truncated);
+
+    const store = new NodeStore(storage);
+    const notice = store.getSnapshot().loadNotice ?? '';
+    expect(notice).toContain('unreadable');
+    expect(notice).toContain('copy is kept as');
+    expect(storage.recovered).toBe(truncated);
+    // The node still opens on sample data so the interface is usable.
+    expect(store.getSnapshot().data.people.length).toBeGreaterThan(0);
+  });
+
+  it('keeps a copy when the shape is valid JSON but invalid for this schema', () => {
+    const storage = new MemoryStorageAdapter();
+    const wrongShape = JSON.stringify({ schemaVersion: 1, data: {}, settings: {} });
+    storage.save(wrongShape);
+
+    const store = new NodeStore(storage);
+    expect(store.getSnapshot().loadNotice).toContain('could not be loaded');
+    expect(storage.recovered).toBe(wrongShape);
+  });
+
+  it('leaves the original untouched when no copy can be kept', () => {
+    const broken = 'not json at all';
+    const storage = new PlainAdapter(broken);
+
+    const store = new NodeStore(storage);
+    expect(store.getSnapshot().loadNotice).toContain('left in place');
+    expect(storage.value).toBe(broken);
+    expect(storage.writes).toBe(0);
   });
 });

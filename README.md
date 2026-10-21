@@ -142,10 +142,12 @@ src/
   pages/            Home, Network, Communities, Nodal locations, Gatherings,
                     Projects, Knowledge, Places, Settings, Appearance, About
   styles/app.css    tokens, layout, themes and the interactive map
+public/             favicon and web app manifest, copied into the build
 .forgejo/workflows/ci.yml  typecheck, tests and build on every push
 tests/              Vitest unit tests
-docs/               architecture, threat model and attachment notes
-.tooling/           accessibility audit harness (see .tooling/README.md)
+docs/               architecture, threat model, attachments, accessibility, releases
+.tooling/           accessibility harness and build check (see .tooling/README.md)
+CHANGELOG.md        release history
 LICENSE             AGPL-3.0
 ```
 
@@ -178,16 +180,29 @@ must allow this origin; see `docs/architecture.md`.
 
 ## Deployment
 
-The build output is a static SPA. Any static host can serve `dist/`:
+The build output is a static SPA with relative asset URLs, so the same `dist/`
+works from a domain root or from a subpath such as `/KnowledgeWeb/`:
 
 ```bash
 npm run build
 # copy dist/ to a static host, or run: npx serve dist
+# check the artifact the way a project site serves it:
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs
 ```
 
-Because routing is hash-based, no server rewrite rules are required. There is no
-backend to deploy. `docs/architecture.md` describes what a real node service
-would need to add.
+Because routing is hash-based, no server rewrite rules and no `404.html` fallback
+are required. There is no backend to deploy. A Codeberg Pages project site is
+served from a `pages` branch of the repository; [docs/releases.md](docs/releases.md)
+has the exact steps and the checks to run afterwards. `docs/architecture.md`
+describes what a real node service would need to add.
+
+## Releases
+
+The current release is **0.1.0**. [CHANGELOG.md](CHANGELOG.md) records what is in
+it, and [docs/releases.md](docs/releases.md) is the runbook for the next one:
+version policy, checks before tagging, tag and release notes, publishing the
+build and rolling back. A release publishes the source; the artifact is
+reproducible from the tag with `npm ci && npm run build`.
 
 ## Prototype boundaries
 

@@ -7,11 +7,21 @@
  */
 export const STORAGE_KEY = 'understory.node.v1';
 
+/** Suffix used for a copy of saved data that could not be read. */
+export const RECOVERY_SUFFIX = '.unreadable';
+
 export interface StorageAdapter {
   readonly kind: string;
   load(): string | null;
   save(value: string): void;
   clear(): void;
+  /**
+   * Best-effort copy of data that failed validation, taken before the node is
+   * replaced. Returns the key the copy was stored under, or null when the copy
+   * could not be kept (no permission, no space). Optional so a minimal adapter
+   * can omit it; the store reports the loss instead of pretending.
+   */
+  preserve?(value: string): string | null;
 }
 
 export class LocalStorageAdapter implements StorageAdapter {
@@ -30,11 +40,24 @@ export class LocalStorageAdapter implements StorageAdapter {
   clear(): void {
     window.localStorage.removeItem(this.key);
   }
+
+  preserve(value: string): string | null {
+    const key = `${this.key}${RECOVERY_SUFFIX}`;
+    try {
+      window.localStorage.setItem(key, value);
+      return key;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export class MemoryStorageAdapter implements StorageAdapter {
   readonly kind = 'memory';
   private value: string | null = null;
+  recovered: string | null = null;
+
+  constructor(private readonly key = STORAGE_KEY) {}
 
   load(): string | null {
     return this.value;
@@ -46,6 +69,12 @@ export class MemoryStorageAdapter implements StorageAdapter {
 
   clear(): void {
     this.value = null;
+  }
+
+  /** A memory copy only lasts for this session, so it is kept for inspection. */
+  preserve(value: string): string {
+    this.recovered = value;
+    return `${this.key}${RECOVERY_SUFFIX} (this session only)`;
   }
 }
 

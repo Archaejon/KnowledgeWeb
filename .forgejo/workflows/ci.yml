@@ -28,3 +28,14 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      # The artifact must keep working from a subpath (Codeberg Pages serves a
+      # project site under /<repo>/). Relative asset URLs are easy to lose.
+      - name: Serve the build from a subpath
+        run: |
+          PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs &
+          sleep 1
+          curl --fail --silent --show-error -o /dev/null http://127.0.0.1:4190/KnowledgeWeb/
+          asset=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
+          curl --fail --silent --show-error -o /dev/null "http://127.0.0.1:4190/KnowledgeWeb/$asset"
+          curl --fail --silent --show-error -o /dev/null http://127.0.0.1:4190/KnowledgeWeb/manifest.webmanifest

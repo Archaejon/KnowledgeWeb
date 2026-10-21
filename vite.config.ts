@@ -1,8 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import pkg from './package.json';
 
 export default defineConfig({
+  // Every asset URL is relative and routing lives in the hash, so the build runs
+  // from any static path: a Codeberg Pages project site under /KnowledgeWeb/, a
+  // subdirectory of another host, or a plain file server. No rebuild per host.
+  base: './',
   plugins: [react()],
+  // One source of truth for the version the interface reports.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   build: { sourcemap: false },
   test: {
     globals: true,
