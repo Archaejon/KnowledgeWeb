@@ -1,6 +1,19 @@
 node_modules/
 dist/
-.tooling/
+
+# Audit harness: only the curated scripts and assets are tracked; the Node
+# runtime, Chrome profiles, logs and result files stay local.
+.tooling/*
+!.tooling/README.md
+!.tooling/axe.min.js
+!.tooling/a11y-audit.mjs
+!.tooling/a11y-contrast.mjs
+!.tooling/a11y-contrast-sampler.js
+!.tooling/a11y-tokens.mjs
+!.tooling/a11y-probe2.mjs
+!.tooling/probe-inert.mjs
+!.tooling/probe-knowledge-files.mjs
+
 *.local
 *.tsbuildinfo
 .dev.log

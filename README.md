@@ -79,8 +79,8 @@ navigation, labelled landmarks, roving radiogroups for the theme pickers, 24 px
 minimum targets, reduced-motion support, dialogs portalled out of the app with
 the background `inert` while they are open, and text/background pairs that clear
 4.5:1 after the per-theme grain and texture layers. The audit is repeatable with
-the scripts in `.tooling/` while the dev server and a Chromium CDP endpoint are
-running.
+the scripts in [`.tooling/`](.tooling/README.md) while the dev server and a
+Chromium CDP endpoint are running.
 
 ## Quick start
 
@@ -145,6 +145,8 @@ src/
 .forgejo/workflows/ci.yml  typecheck, tests and build on every push
 tests/              Vitest unit tests
 docs/               architecture, threat model and attachment notes
+.tooling/           accessibility audit harness (see .tooling/README.md)
+LICENSE             AGPL-3.0
 ```
 
 ## Data, privacy and backup
@@ -213,5 +215,5 @@ For a fuller account, see [docs/architecture.md](docs/architecture.md) and
 
 ## Licence
 
-AGPL-3.0-or-later. The prototype is intended to be inspectable, forkable and
-self-hostable.
+AGPL-3.0-or-later. The full text is in [LICENSE](LICENSE). The prototype is
+intended to be inspectable, forkable and self-hostable.

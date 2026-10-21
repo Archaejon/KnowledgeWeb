@@ -18,7 +18,7 @@ manual screen-reader pass, which remains outstanding (see
 | Rule scan | Full axe-core 4.10.2 rule set (WCAG 2.0/2.1/2.2 A-AA and best practice) on 16 routes × 3 themes, desktop 1280×900 and mobile 390×844 | `.tooling/a11y-audit.mjs` |
 | Rendered contrast | Screenshots the real page, samples the pixels inside every text box, compares the dominant surface with the computed text colour | `.tooling/a11y-contrast.mjs` |
 | Token matrix | Recomputes 30 text/background pairings per theme straight from `src/styles/app.css` | `.tooling/a11y-tokens.mjs` |
-| Interaction probes | Skip link, tab order, focus rings, radio groups, tabs, target sizes, 320 px reflow, 200 % zoom, reduced motion | `.tooling/a11y-probe*.mjs` |
+| Interaction probes | Skip link, tab order, focus rings, radio groups, tabs, target sizes, 320 px reflow, 200 % zoom, reduced motion | `.tooling/a11y-probe2.mjs` |
 | Dialog isolation | Portal placement, `inert` background, hit-testing, Tab/Shift+Tab containment, Escape, focus restore, release of `inert` and scroll lock | `.tooling/probe-inert.mjs` |
 
 The pixel layer exists because axe reports the themed surfaces as *incomplete*:
@@ -226,6 +226,10 @@ node .tooling/a11y-probe2.mjs     # skip link, titles, focus, radios, reflow
 node .tooling/probe-inert.mjs     # modal portal, inert background, trap, restore
 ```
 
+Those scripts are tracked in the repository; the prerequisites, the second
+browser needed by the voice-note probe and every output file are described in
+[`.tooling/README.md`](../.tooling/README.md).
+
 Results are written next to the scripts as `a11y-results.json`,
 `a11y-contrast-results.json` and `a11y-probe2-results.json`.
 `probe-inert.mjs` prints 16 checks (including navigation out of a dialog) and
@@ -237,3 +241,4 @@ assume the sample data and open a fresh tab per run; they do not modify node dat
 ![Communities in the Web theme](../screenshots/a11y-web-communities.jpg)
 ![Appearance theme picker](../screenshots/a11y-web-appearance.jpg)
 ![Nodal detail dialog in the Tree theme](../screenshots/a11y-tree-nodal-detail.jpg)
+![A dialog portalled outside the inert app root](../screenshots/modal-portal-web.png)
