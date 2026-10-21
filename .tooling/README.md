@@ -62,12 +62,16 @@ including the router, the route chunks, the favicon and the manifest:
 
 ```bash
 npm run build
-PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs   # http://127.0.0.1:4190/KnowledgeWeb/
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs --check   # verifies and exits
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs           # http://127.0.0.1:4190/KnowledgeWeb/
 ```
 
-The prefix is read from `PREFIX` because Git Bash rewrites an argument that looks
-like a POSIX path into a Windows path. No browser debugging port is needed for
-this one; open the page normally.
+`--check` fetches the index, the entry chunk, the stylesheet, the favicon and the
+manifest, requires relative asset URLs, and sets a non-zero exit code on any
+failure, so CI runs it on every push. Without it the server stays up for a real
+browser. The prefix is read from `PREFIX` because Git Bash rewrites an argument
+that looks like a POSIX path into a Windows path. No browser debugging port is
+needed for this one; open the page normally.
 
 ## Reading results
 

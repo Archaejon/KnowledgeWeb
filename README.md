@@ -187,7 +187,8 @@ works from a domain root or from a subpath such as `/KnowledgeWeb/`:
 npm run build
 # copy dist/ to a static host, or run: npx serve dist
 # check the artifact the way a project site serves it:
-PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs          # serves on :4190
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs --check  # pass/fail only
 ```
 
 Because routing is hash-based, no server rewrite rules and no `404.html` fallback
