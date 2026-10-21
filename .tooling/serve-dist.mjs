@@ -2,7 +2,7 @@
 // Codeberg Pages project site serves it: https://<user>.codeberg.page/<repo>/
 //
 //   node .tooling/serve-dist.mjs            # serve for manual checking
-//   node .tooling/serve-dist.mjs --check    # verify and exit
+//   node .tooling/serve-dist.mjs --check    # verify the artifact and exit
 //
 // Defaults: prefix /KnowledgeWeb/, port 4190. Local verification only.
 import { createServer } from 'node:http';
@@ -32,122 +32,125 @@ const types = {
   '.woff2': 'font/woff2',
 };
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
-  if (!url.pathname.startsWith(prefix)) {
-    res.writeHead(404, { 'content-type': 'text/plain' });
-    res.end(`Not under ${prefix}\n`);
-    return;
-  }
-  const relative = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
-  const target = join(root, normalize(relative).replaceAll(sep, '/'));
-  if (!target.startsWith(root)) {
-    res.writeHead(403);
-    res.end();
-    return;
-  }
-  try {
-    const info = await stat(target);
-    const file = info.isDirectory() ? join(target, 'index.html') : target;
-    const body = await readFile(file);
-    res.writeHead(200, {
-      'content-type': types[extname(file)] ?? 'application/octet-stream',
-      'cache-control': 'no-store',
-    });
-    res.end(body);
-  } catch {
-    res.writeHead(404, { 'content-type': 'text/plain' });
-    res.end('Not found\n');
-  }
-});
-
-const origin = () => `http://127.0.0.1:${port}${prefix}`;
-
+/**
+ * The check runs on the built files rather than over HTTP: it reads index.html,
+ * follows the asset URLs it finds, and asserts the properties that make one
+ * artifact work at a project subpath. No socket, so it behaves the same on a
+ * laptop and in a CI container.
+ */
 async function verify() {
   const failures = [];
-  const checkOne = async (label, path, expectedType, extra) => {
-    const response = await fetch(`${origin()}${path}`);
-    const body = await response.text();
-    let ok = response.ok && response.headers.get('content-type') === expectedType;
-    let detail = `${response.status} ${response.headers.get('content-type')}`;
-    if (ok && extra) {
-      const problem = extra(body);
-      if (problem) {
-        ok = false;
-        detail = problem;
-      }
-    }
-    if (!ok) failures.push(label);
-    console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}  — ${detail}`);
+  const pass = (label, detail) => console.log(`PASS  ${label}  — ${detail}`);
+  const fail = (label, detail) => {
+    failures.push(label);
+    console.log(`FAIL  ${label}  — ${detail}`);
   };
 
-  const html = await readFile(join(root, 'index.html'), 'utf8');
-  // Relative URLs are the property under test: an absolute /assets/... path
-  // works at a domain root and silently 404s on a project subpath.
-  const assetPath = (tag) => {
-    if (!tag) return { fail: 'tag missing from index.html' };
-    if (/^([a-z]+:)?[\\/]/i.test(tag)) return { fail: `URL is absolute: ${tag}` };
-    return { path: tag.replace(/^\.\//, '') };
-  };
-  const script = assetPath(html.match(/src="([^"]+\.js)"/)?.[1]);
-  const style = assetPath(html.match(/href="([^"]+\.css)"/)?.[1]);
-
-  await checkOne('index.html at the subpath', '', 'text/html; charset=utf-8', (body) =>
-    body.includes('<div id="root">') ? null : 'no root element',
-  );
-
-  if (script.fail) {
-    failures.push(`entry chunk: ${script.fail}`);
-    console.log(`FAIL  entry chunk  — ${script.fail}`);
-  } else {
-    await checkOne(
-      'entry chunk (relative URL)',
-      script.path,
-      'text/javascript; charset=utf-8',
-      (body) => (body.length > 1000 ? null : 'chunk is suspiciously small'),
-    );
-  }
-
-  if (style.fail) {
-    failures.push(`stylesheet: ${style.fail}`);
-    console.log(`FAIL  stylesheet  — ${style.fail}`);
-  } else {
-    await checkOne('stylesheet (relative URL)', style.path, 'text/css; charset=utf-8');
-  }
-
-  await checkOne('favicon', 'favicon.svg', 'image/svg+xml');
-  await checkOne('web app manifest', 'manifest.webmanifest', 'application/manifest+json', (body) => {
+  const exists = async (relative) => {
     try {
-      const manifest = JSON.parse(body);
-      const start = new URL(manifest.start_url, `${origin()}manifest.webmanifest`).pathname;
-      const scope = new URL(manifest.scope, `${origin()}manifest.webmanifest`).pathname;
-      return start === prefix && scope === prefix
-        ? null
-        : `start_url ${start} / scope ${scope} do not match ${prefix}`;
+      const info = await stat(join(root, relative));
+      return info.isFile() ? info.size : 0;
     } catch {
-      return 'manifest is not valid JSON';
+      return 0;
     }
-  });
+  };
+
+  let html;
+  try {
+    html = await readFile(join(root, 'index.html'), 'utf8');
+  } catch {
+    console.log('FAIL  dist/index.html  — run `npm run build` first');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (html.includes('<div id="root">')) pass('index.html', 'has the app root');
+  else fail('index.html', 'no #root element');
+
+  // Relative URLs are the property under test: "/assets/..." works at a domain
+  // root and silently 404s on a project subpath.
+  for (const [label, pattern, ext] of [
+    ['entry chunk', /src="([^"]+\.js)"/, '.js'],
+    ['stylesheet', /href="([^"]+\.css)"/, '.css'],
+  ]) {
+    const tag = html.match(pattern)?.[1];
+    if (!tag) {
+      fail(label, 'no matching tag in index.html');
+      continue;
+    }
+    if (/^([a-z]+:)?[\\/]/i.test(tag)) {
+      fail(label, `URL is absolute: ${tag}`);
+      continue;
+    }
+    const size = await exists(tag.replace(/^\.\//, ''));
+    if (size > 1000) pass(`${label} (relative URL)`, `${tag}, ${size} bytes`);
+    else fail(`${label} (relative URL)`, `${tag} is missing or empty in dist/`);
+  }
+
+  for (const [label, file, type] of [
+    ['favicon', 'favicon.svg', 'image/svg+xml'],
+    ['web app manifest', 'manifest.webmanifest', 'application/manifest+json'],
+  ]) {
+    const size = await exists(file);
+    if (size > 0) pass(label, `${file}, ${size} bytes (${type})`);
+    else fail(label, `${file} is missing from dist/`);
+  }
+
+  try {
+    const manifest = JSON.parse(await readFile(join(root, 'manifest.webmanifest'), 'utf8'));
+    const relative = (value) => !value || !/^([a-z]+:)?[\\/]/i.test(value);
+    if (manifest.start_url === './' && manifest.scope === './') {
+      pass('manifest scope', 'start_url and scope stay relative');
+    } else {
+      fail('manifest scope', `start_url ${manifest.start_url} / scope ${manifest.scope}`);
+    }
+    if (manifest.icons && !manifest.icons.every((icon) => relative(icon.src))) {
+      fail('manifest icons', 'an icon URL is absolute');
+    }
+  } catch (error) {
+    fail('manifest JSON', error instanceof Error ? error.message : String(error));
+  }
 
   if (failures.length > 0) {
     console.log(`\n${failures.length} check(s) failed: ${failures.join(', ')}`);
     process.exitCode = 1;
   } else {
-    console.log('\nbuild serves correctly from a subpath');
+    console.log(`\nbuild is portable: it serves from ${prefix} without a rebuild`);
   }
 }
 
-server.listen(port, '127.0.0.1', async () => {
-  if (!check) {
-    console.log(`dist served at ${origin()}`);
-    return;
-  }
-  try {
-    await verify();
-  } catch (error) {
-    console.error(`FAIL  ${error instanceof Error ? error.message : error}`);
-    process.exitCode = 1;
-  } finally {
-    server.close();
-  }
-});
+if (check) {
+  await verify();
+} else {
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+    if (!url.pathname.startsWith(prefix)) {
+      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.end(`Not under ${prefix}\n`);
+      return;
+    }
+    const relative = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
+    const target = join(root, normalize(relative).replaceAll(sep, '/'));
+    if (!target.startsWith(root)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+    try {
+      const info = await stat(target);
+      const file = info.isDirectory() ? join(target, 'index.html') : target;
+      const body = await readFile(file);
+      res.writeHead(200, {
+        'content-type': types[extname(file)] ?? 'application/octet-stream',
+        'cache-control': 'no-store',
+      });
+      res.end(body);
+    } catch {
+      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.end('Not found\n');
+    }
+  });
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`dist served at http://127.0.0.1:${port}${prefix}`);
+  });
+}

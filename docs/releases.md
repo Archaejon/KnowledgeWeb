@@ -28,7 +28,7 @@ Then check the built artifact the way a host serves it, not the way the dev
 server does:
 
 ```bash
-PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs --check   # status of every asset
+PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs --check   # artifact is portable
 PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs           # or serve on :4190
 # open http://127.0.0.1:4190/KnowledgeWeb/
 ```

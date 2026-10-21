@@ -66,12 +66,15 @@ PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs --check   # verifies and exits
 PREFIX=KnowledgeWeb node .tooling/serve-dist.mjs           # http://127.0.0.1:4190/KnowledgeWeb/
 ```
 
-`--check` fetches the index, the entry chunk, the stylesheet, the favicon and the
-manifest, requires relative asset URLs, and sets a non-zero exit code on any
-failure, so CI runs it on every push. Without it the server stays up for a real
-browser. The prefix is read from `PREFIX` because Git Bash rewrites an argument
-that looks like a POSIX path into a Windows path. No browser debugging port is
-needed for this one; open the page normally.
+`--check` reads the built files directly: it follows the asset URLs in
+`index.html`, requires them to be relative, confirms the entry chunk, stylesheet,
+favicon and manifest exist and are non-empty, and checks the manifest's scope. It
+uses no socket, so it behaves the same locally and inside a CI container, and it
+sets a non-zero exit code on any failure — CI runs it on every push. Without
+`--check` the server stays up for a real browser. The prefix is read from
+`PREFIX` because Git Bash rewrites an argument that looks like a POSIX path into a
+Windows path. No browser debugging port is needed for this one; open the page
+normally.
 
 ## Reading results
 
