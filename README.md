@@ -101,6 +101,26 @@ npm run preview # serve the production build at http://127.0.0.1:4178
 npm run typecheck
 ```
 
+## Continuous integration
+
+[`.forgejo/workflows/ci.yml`](.forgejo/workflows/ci.yml) runs on every push and
+pull request through Forgejo Actions. It installs from the lockfile, then runs
+`npm run typecheck`, `npm test` and `npm run build` on Node 22, using Codeberg's
+`codeberg-small` hosted runner (2 CPU, 4 GB, five minutes). A clean install of the
+same four commands passes locally, so a green run should reflect the repository
+rather than the machine.
+
+Two repository settings are needed before checks appear:
+
+- **Settings → Units → Overview → Enable Actions.** Actions are disabled by
+default.
+- Codeberg's hosted runners are limited to public, free-licensed projects, so the
+repository must be public and carry its AGPL-3.0 license file.
+
+The browser audit harness under `.tooling/` is deliberately not part of CI: it
+needs a running dev server and a Chromium debugging endpoint, which the hosted
+runner's sandbox and five-minute budget do not provide.
+
 ## Project layout
 
 ```
@@ -122,8 +142,9 @@ src/
   pages/            Home, Network, Communities, Nodal locations, Gatherings,
                     Projects, Knowledge, Places, Settings, Appearance, About
   styles/app.css    tokens, layout, themes and the interactive map
+.forgejo/workflows/ci.yml  typecheck, tests and build on every push
 tests/              Vitest unit tests
-docs/               architecture and threat-model notes
+docs/               architecture, threat model and attachment notes
 ```
 
 ## Data, privacy and backup

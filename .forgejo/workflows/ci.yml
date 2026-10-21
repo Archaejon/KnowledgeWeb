@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Typecheck, test and build
+    runs-on: codeberg-small
+    # The official Node image already contains git and npm, so the checkout
+    # action and the project scripts can run without a setup step.
+    container:
+      image: node:22-bookworm
+    steps:
+      - name: Check out the repository
+        uses: https://data.forgejo.org/actions/checkout@v7
+
+      - name: Install from the lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
