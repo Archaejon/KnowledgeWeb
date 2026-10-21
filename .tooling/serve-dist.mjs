@@ -17,7 +17,8 @@ const prefix = (process.env.PREFIX ?? positional ?? '/KnowledgeWeb/')
   .replace(/^[A-Za-z]:.*[\\/]/, '/') // a Git Bash-mangled argument
   .replace(/^[\\/]*/, '/')
   .replace(/[\\/]*$/, '/');
-const port = Number(process.env.PORT ?? 4190);
+// PORT=0 (set by some tooling) means "any free port", which is not useful here.
+const port = Number(process.env.PORT) || 4190;
 const root = join(process.cwd(), 'dist');
 
 const types = {
