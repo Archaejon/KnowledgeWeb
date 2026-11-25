@@ -8,6 +8,7 @@ import { HomePage } from './pages/Home';
 // Every other route is a separate chunk: first load does not download the
 // network map, the knowledge editor or the project/gathering views.
 const NetworkPage = lazy(() => import('./pages/Network').then((m) => ({ default: m.NetworkPage })));
+const ConnectPage = lazy(() => import('./pages/Connect').then((m) => ({ default: m.ConnectPage })));
 const CommunitiesPage = lazy(() =>
   import('./pages/Communities').then((m) => ({ default: m.CommunitiesPage })),
 );
@@ -83,6 +84,7 @@ export function App() {
       <Suspense fallback={<PageLoading />}>
         {route.page === 'home' ? <HomePage /> : null}
         {route.page === 'network' ? <NetworkPage /> : null}
+        {route.page === 'connect' ? <ConnectPage token={route.id} /> : null}
         {route.page === 'communities' ? <CommunitiesPage communityId={route.id} /> : null}
         {route.page === 'gatherings' ? <GatheringsPage gatheringId={route.id} /> : null}
         {route.page === 'projects' ? <ProjectsPage projectId={route.id} /> : null}

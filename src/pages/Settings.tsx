@@ -189,7 +189,7 @@ export function SettingsPage() {
                     }
                   }}
                 >
-                  {data.people.map((person) => (
+                  {data.people.filter((person) => !person.remote).map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.name} {person.directoryOptIn ? '' : '· directory opt-out'}
                     </option>

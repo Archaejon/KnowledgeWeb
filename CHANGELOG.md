@@ -8,6 +8,49 @@ identities, transport and encryption exist.
 
 ## [Unreleased]
 
+### Added
+
+- Live connections between two nodes. **Connect → Create my node** makes a
+  real Ed25519 identity (private key non-extractable, kept in IndexedDB and out
+  of backups). An invite link carries the inviter's key and a room secret in
+  the URL fragment; the friend accepts, the inviter confirms the friend's key
+  fingerprint, and the two browsers then exchange relationship- and
+  public-scoped knowledge over a direct WebRTC channel (trystero, signalling
+  over public Nostr relays). Every connection proves both keys; incoming
+  records are re-validated; ending a connection removes held copies on both
+  sides. See [docs/live-connections.md](docs/live-connections.md).
+- **Connect** in the navigation, including the mobile bar (Communities moves
+  under **More** on phones).
+
+<!-- The two storage entries below describe work built in October whose source
+     is being recovered; it is not yet in this branch. -->
+- Optional passphrase encryption at rest. Turning it on in **Node settings →
+  Storage & backup** rewrites the node as an AES-GCM-256 envelope under a key
+  derived from the passphrase with PBKDF2-SHA-256 (310,000 iterations, random
+  salt, a fresh IV on every write). Start-up then asks for the passphrase before
+  anything loads. The passphrase is not stored anywhere, so a forgotten one
+  cannot be recovered, and **Remove encryption** writes the plain node back.
+- Encrypted backups: **Encrypted backup (.json)** asks for a passphrase at
+  export time, which may differ from the node passphrase, and restoring one asks
+  for it before the file is validated.
+
+### Changed
+
+- Node data now lives in IndexedDB instead of localStorage. Attachments grow
+  from 3 MB to 40 MB for the whole node, 8 MB per file and 12 MB per record.
+  A node saved under the old localStorage key is moved across on first start,
+  and the old copy is only removed once the new one has committed. localStorage
+  (3 MB budget) and memory remain fallbacks when IndexedDB cannot be opened.
+- Backups of a node full of attachments can be restored: the import limit rises
+  from 8 MB to 96 MB.
+
+### Fixed
+
+- The dev server no longer reloads when audit browsers write to `.tooling/`.
+- A storage write that fails asynchronously is reported in the storage banner
+  instead of being lost, and the saved time only advances once the write has
+  committed.
+
 ## [0.1.0] — 2026-10-21
 
 The first public release: a working local prototype of a consent-based knowledge

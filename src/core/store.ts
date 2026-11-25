@@ -26,9 +26,11 @@ import {
   normaliseAttachments,
   ATTACHMENT_LIMITS,
 } from './attachments';
-import { groupAgreementStatus, isActiveMember, relationshipFor } from './consent';
+import { activeRelationshipFor, groupAgreementStatus, isActiveMember, relationshipFor } from './consent';
 import { isoNow } from './dates';
 import { createDefaultSettings, createNewNode, createSampleData } from './sample';
+import { cleanIncomingRecord } from './peer/sync';
+import type { PeerProfile } from './peer/sync';
 import type { StorageAdapter } from './storage';
 import { MemoryStorageAdapter } from './storage';
 import { SCHEMA_VERSION } from './types';
@@ -56,6 +58,7 @@ import type {
   Observation,
   ObservationKind,
   Person,
+  PeerInvite,
   PersonRelationship,
   Place,
   Project,
@@ -148,6 +151,10 @@ export interface CommunityInput {
   geographicArea: string;
   joinPolicy: 'open' | 'request';
   advertiseDirectory: boolean;
+}
+
+function personNameOf(data: NodeData, id: string): string {
+  return data.people.find((p) => p.id === id)?.name ?? 'Your partner';
 }
 
 function newId(prefix: string): string {
@@ -282,9 +289,9 @@ export class NodeStore {
   }
 
   setActor(actorId: ActorId) {
-    if (!this.snapshot.data.people.some((p) => p.id === actorId)) {
-      throw new Error('That identity is not part of this node.');
-    }
+    const person = this.snapshot.data.people.find((p) => p.id === actorId);
+    if (!person) throw new Error('That identity is not part of this node.');
+    if (person.remote) throw new Error('That person lives on another node; you cannot act as them.');
     this.commit(this.snapshot.data, { ...this.snapshot.settings, actorId });
   }
 
@@ -469,6 +476,11 @@ export class NodeStore {
       rel.revokedAt = isoNow();
       rel.revokedBy = actorId;
       rel.cachedCopiesHeld = false;
+      if (rel.peer) {
+        // Drop everything received from them and tell their node at the next chance.
+        data.knowledge = data.knowledge.filter((k) => k.authorId !== otherId);
+        rel.peer.revokeNoticePending = true;
+      }
       this.log(
         data,
         'relationship-revoked',
@@ -478,6 +490,280 @@ export class NodeStore {
           : `Bilateral relationship revoked. Future access is blocked. This node holds no cached copies from this relationship; independently kept copies elsewhere cannot be recalled.`,
         { relationshipId: rel.id, subjectIds: [otherId] },
       );
+    });
+  }
+
+  // ------------------------------------------------------------- live peers
+  //
+  // These commands are driven by the peer manager (core/peer/manager.ts) and by
+  // the Connect page. They always act as the node owner, never as the demo
+  // acting identity, because only the owner holds a private key.
+
+  private owner(data: NodeData): Person {
+    const ownerId = data.node.ownerId;
+    const owner = ownerId ? data.people.find((p) => p.id === ownerId) : undefined;
+    if (!owner?.publicKey) throw new Error('Create your own node before connecting to anyone.');
+    return owner;
+  }
+
+  /** Replace this node with a fresh one owned by a real key pair. */
+  createOwnedNode(input: { personId: string; publicKey: string; fingerprint: string; name: string; handle: string }) {
+    const name = requireText(input.name, 'Your name', 1, 80);
+    const handleText = optionalText(input.handle, 40).replace(/\s+/g, '');
+    const data = createNewNode(`${name}’s node`);
+    data.node.ownerId = input.personId;
+    data.people = [
+      {
+        id: input.personId,
+        name,
+        handle: handleText ? (handleText.startsWith('@') ? handleText : `@${handleText}`) : '',
+        nodeLabel: data.node.id,
+        locality: '',
+        bio: '',
+        skills: [],
+        keyFingerprint: input.fingerprint,
+        publicKey: input.publicKey,
+        joinedAt: isoNow(),
+        directoryOptIn: false,
+      },
+    ];
+    const previous = this.snapshot.settings;
+    this.snapshot = {
+      data,
+      settings: {
+        ...createDefaultSettings(),
+        theme: previous.theme,
+        ai: previous.ai,
+        actorId: input.personId,
+        showSampleBanner: false,
+      },
+    };
+    this.persist();
+    this.emit();
+  }
+
+  createPeerInvite(room: string, message: string): PeerInvite {
+    let invite: PeerInvite | undefined;
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const open = (data.invites ?? []).filter((i) => i.status === 'open');
+      if (open.length >= 10) throw new Error('Cancel an open invite before making another.');
+      invite = {
+        id: newId('inv'),
+        room,
+        createdAt: isoNow(),
+        message: optionalText(message, 500) || undefined,
+        status: 'open',
+      };
+      data.invites = [...(data.invites ?? []), invite];
+      this.log(data, 'peer-invite-created', owner.id, 'Invite link created. Nobody gets access until you confirm who accepted it.');
+    });
+    return invite!;
+  }
+
+  cancelPeerInvite(inviteId: string) {
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const invite = data.invites?.find((i) => i.id === inviteId);
+      if (!invite || invite.status !== 'open') throw new Error('That invite is no longer open.');
+      invite.status = 'cancelled';
+      this.log(data, 'peer-invite-cancelled', owner.id, 'Invite link cancelled; it can no longer be used.');
+    });
+  }
+
+  private upsertRemotePerson(data: NodeData, id: string, publicKey: string, fingerprint: string, profile: PeerProfile): Person {
+    let person = data.people.find((p) => p.id === id);
+    if (person && person.publicKey !== publicKey) throw new Error('A different person already uses that identity.');
+    if (!person) {
+      person = {
+        id,
+        name: profile.name,
+        handle: profile.handle,
+        nodeLabel: 'remote node',
+        locality: profile.locality,
+        bio: profile.bio,
+        skills: [],
+        keyFingerprint: fingerprint,
+        publicKey,
+        remote: true,
+        joinedAt: isoNow(),
+        directoryOptIn: false,
+      };
+      data.people.push(person);
+    } else {
+      Object.assign(person, profile, { remote: true });
+    }
+    return person;
+  }
+
+  /**
+   * Invitee side: accept an invite link. Creates a pending relationship that
+   * becomes active only when the inviter confirms who accepted.
+   */
+  acceptPeerInvite(input: {
+    inviterId: string;
+    inviterKey: string;
+    fingerprint: string;
+    profile: PeerProfile;
+    room: string;
+  }): string {
+    let relationshipId = '';
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      if (input.inviterKey === owner.publicKey) throw new Error('This is your own invite link.');
+      const existing = relationshipFor(data, owner.id, input.inviterId);
+      if (existing?.status === 'active') throw new Error(`You are already connected to ${input.profile.name}.`);
+      if (existing?.status === 'pending' && existing.peer?.room === input.room) {
+        relationshipId = existing.id;
+        return;
+      }
+      const inviter = this.upsertRemotePerson(data, input.inviterId, input.inviterKey, input.fingerprint, input.profile);
+      const rel: PersonRelationship = {
+        id: newId('rel'),
+        aId: inviter.id,
+        bId: owner.id,
+        initiatedBy: inviter.id,
+        status: 'pending',
+        proposedAt: isoNow(),
+        cachedCopiesHeld: false,
+        peer: { room: input.room, partnerKey: input.inviterKey },
+      };
+      data.relationships.push(rel);
+      this.log(
+        data,
+        'invitation-accepted',
+        owner.id,
+        `${owner.name} accepted an invite link from ${inviter.name}. Nothing is shared until ${inviter.name} confirms it was you.`,
+        { relationshipId: rel.id, subjectIds: [inviter.id] },
+      );
+      relationshipId = rel.id;
+    });
+    return relationshipId;
+  }
+
+  /** Inviter side: confirm that the person who accepted the invite is the friend it was meant for. */
+  admitPeer(input: { inviteId: string; personId: string; publicKey: string; fingerprint: string; profile: PeerProfile }): string {
+    let relationshipId = '';
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const invite = data.invites?.find((i) => i.id === input.inviteId);
+      if (!invite || invite.status !== 'open') throw new Error('That invite is no longer open.');
+      if (input.publicKey === owner.publicKey) throw new Error('You cannot connect to yourself.');
+      if (activeRelationshipFor(data, owner.id, input.personId)) throw new Error('You are already connected to this person.');
+      const friend = this.upsertRemotePerson(data, input.personId, input.publicKey, input.fingerprint, input.profile);
+      const rel: PersonRelationship = {
+        id: newId('rel'),
+        aId: owner.id,
+        bId: friend.id,
+        initiatedBy: owner.id,
+        status: 'active',
+        proposedAt: invite.createdAt,
+        respondedAt: isoNow(),
+        cachedCopiesHeld: false,
+        peer: { room: invite.room, partnerKey: input.publicKey },
+      };
+      data.relationships.push(rel);
+      invite.status = 'used';
+      invite.usedBy = friend.id;
+      this.log(
+        data,
+        'invitation-accepted',
+        owner.id,
+        `${owner.name} confirmed ${friend.name} (key ${input.fingerprint.slice(0, 9)}…). Relationship-scoped knowledge is now shared both ways.`,
+        { relationshipId: rel.id, subjectIds: [friend.id] },
+      );
+      relationshipId = rel.id;
+    });
+    return relationshipId;
+  }
+
+  /** Invitee side: the inviter confirmed (or declined) the connection. */
+  settlePeerInvite(relationshipId: string, accepted: boolean) {
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const rel = data.relationships.find((r) => r.id === relationshipId);
+      if (!rel?.peer || rel.status !== 'pending') return;
+      const otherId = rel.aId === owner.id ? rel.bId : rel.aId;
+      rel.status = accepted ? 'active' : 'declined';
+      rel.respondedAt = isoNow();
+      this.log(
+        data,
+        accepted ? 'invitation-accepted' : 'invitation-declined',
+        otherId,
+        accepted
+          ? `${personNameOf(data, otherId)} confirmed the connection. Relationship-scoped knowledge is now shared both ways.`
+          : `${personNameOf(data, otherId)} did not confirm the connection. Nothing was shared.`,
+        { relationshipId: rel.id, subjectIds: [otherId] },
+      );
+    });
+  }
+
+  /** Replace the partner's records held here with the set they just sent. */
+  applyPeerSync(relationshipId: string, profile: PeerProfile, incoming: unknown[]): { received: number; refused: number; attachmentsDropped: number } {
+    const result = { received: 0, refused: 0, attachmentsDropped: 0 };
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const rel = data.relationships.find((r) => r.id === relationshipId);
+      if (!rel?.peer || rel.status !== 'active') throw new Error('That connection is not active.');
+      const partnerId = rel.aId === owner.id ? rel.bId : rel.aId;
+      const partner = this.requirePerson(data, partnerId);
+      Object.assign(partner, profile);
+      const localIds = new Set(data.knowledge.filter((k) => k.authorId !== partnerId).map((k) => k.id));
+      const kept = data.knowledge.filter((k) => k.authorId !== partnerId);
+      const received: KnowledgeRecord[] = [];
+      for (const raw of incoming) {
+        const record = cleanIncomingRecord(raw, partnerId);
+        if (!record || localIds.has(record.id) || received.some((r) => r.id === record.id)) {
+          result.refused += 1;
+          continue;
+        }
+        received.push(record);
+      }
+      // Attachments are kept only while the node's attachment budget allows.
+      let budget = ATTACHMENT_LIMITS.maxNodeBytes - nodeAttachmentBytes(kept);
+      for (const record of received) {
+        const bytes = attachmentBytes(attachmentsOf(record));
+        if (bytes > 0 && (bytes > budget || attachmentLimitError(attachmentsOf(record)))) {
+          result.attachmentsDropped += attachmentsOf(record).length;
+          record.attachments = [];
+        } else {
+          budget -= bytes;
+        }
+      }
+      data.knowledge = [...kept, ...received];
+      rel.cachedCopiesHeld = received.length > 0;
+      rel.peer.lastSyncAt = isoNow();
+      result.received = received.length;
+    });
+    return result;
+  }
+
+  /** The partner revoked the relationship from their node. */
+  applyPeerRevoke(relationshipId: string) {
+    this.mutate((data) => {
+      const owner = this.owner(data);
+      const rel = data.relationships.find((r) => r.id === relationshipId);
+      if (!rel?.peer || (rel.status !== 'active' && rel.status !== 'pending')) return;
+      const otherId = rel.aId === owner.id ? rel.bId : rel.aId;
+      rel.status = 'revoked';
+      rel.revokedAt = isoNow();
+      rel.revokedBy = otherId;
+      rel.cachedCopiesHeld = false;
+      data.knowledge = data.knowledge.filter((k) => k.authorId !== otherId);
+      this.log(
+        data,
+        'relationship-revoked',
+        otherId,
+        `${personNameOf(data, otherId)} ended the connection. Their records held here were removed, and yours are no longer sent.`,
+        { relationshipId: rel.id, subjectIds: [otherId] },
+      );
+    });
+  }
+
+  markRevokeDelivered(relationshipId: string) {
+    this.mutate((data) => {
+      const rel = data.relationships.find((r) => r.id === relationshipId);
+      if (rel?.peer) rel.peer.revokeNoticePending = false;
     });
   }
 

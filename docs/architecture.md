@@ -174,20 +174,22 @@ downloaded. CORS must be enabled for the app origin if the browser talks to
 Ollama directly (for example `OLLAMA_ORIGINS=http://127.0.0.1:5178`). A hosted
 deployment would normally put this behind a server-side proxy.
 
-## Future transport boundary
+## Live connections and the transport boundary
 
-There is **no** peer-to-peer networking yet. The intended seam is:
+Two nodes can now connect over WebRTC: real Ed25519 identities, invite links,
+a mutual key-proof handshake, and a sync of relationship- and public-scoped
+knowledge. See [live-connections.md](live-connections.md). The manager in
+`core/peer/manager.ts` owns no data; every change goes through `NodeStore`
+commands, so validation, the access engine and the consent log apply as for
+local edits. The transport is a narrow `JoinFn`/`RoomLike` seam, so the
+trystero adapter can be swapped for another.
 
-1. A transport adapter that carries signed, versioned envelopes between nodes.
-2. A sync engine that exchanges only records covered by an active relationship
-   or group agreement.
-3. A local outbox for offline changes, with retry and conflict metadata.
-4. Optional store-and-forward relays that cannot read payloads.
+Still missing from the intended design:
 
-Those pieces do not exist. Until they do, the app must not claim decentralised
-synchronisation, encryption or authentication. A real implementation also needs
-authenticated remote identities, key rotation, replay protection and a
-server-side enforcement point.
+1. A local outbox and store-and-forward relays that cannot read payloads, so
+   partners need not be online together.
+2. Sync for community records under group agreements spanning several nodes.
+3. Key rotation, multi-device identities and conflict metadata.
 
 ## Deployment shape
 

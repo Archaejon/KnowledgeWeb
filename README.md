@@ -216,9 +216,13 @@ These are deliberate, documented limits, not hidden mock behaviour:
   read path in this app (lists, detail views, search, exports, charts, AI
   context). A multi-user deployment must run the same checks server-side on
   authenticated sessions.
-- There is no peer-to-peer transport, relay, federation, offline queue or
-  encryption yet. The UI and docs say so. `core/network.ts` is a projection of
-  local data, not a live network.
+- **Live connections** ([docs/live-connections.md](docs/live-connections.md))
+  are real: nodes made with **Connect → Create my node** have Ed25519 keys, and
+  two such nodes exchange relationship- and public-scoped knowledge over a
+  direct WebRTC link after both keys are proved. Both people must be online at
+  the same time; there is no relay, federation or offline queue, and only
+  knowledge records travel. The demo people and their fingerprints remain
+  simulated. `core/network.ts` is a projection of local data.
 - Revocation blocks future access here and removes cached content from active
   views. It cannot recall independently exported, copied or memorised material,
   and the app never claims otherwise.

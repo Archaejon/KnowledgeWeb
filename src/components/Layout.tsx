@@ -20,6 +20,7 @@ interface NavItem {
 const primaryNav: NavItem[] = [
   { page: 'home', label: 'Home', icon: 'home', hint: 'Your week and your node' },
   { page: 'network', label: 'Network', icon: 'network', hint: 'Connections and consent' },
+  { page: 'connect', label: 'Connect', icon: 'link', hint: 'Invite a friend, live' },
   { page: 'communities', label: 'Communities', icon: 'community', hint: 'Shared places and agreements' },
   { page: 'gatherings', label: 'Gatherings', icon: 'gathering', hint: 'Meetings and work parties' },
   { page: 'projects', label: 'Projects', icon: 'project', hint: 'Shared practical work' },
@@ -31,6 +32,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
+  { page: 'communities', label: 'Communities', icon: 'community', hint: 'Shared places and agreements' },
   { page: 'places', label: 'Places', icon: 'place', hint: 'Observations and stewardship' },
   { page: 'nodal-locations', label: 'Nodal locations', icon: 'pin', hint: 'Gathering places and commons' },
   { page: 'projects', label: 'Projects', icon: 'project', hint: 'Shared practical work' },
@@ -43,6 +45,7 @@ const secondaryNav: NavItem[] = [
 export const pageTitles: Record<PageName, string> = {
   home: 'Home',
   network: 'Network',
+  connect: 'Connect',
   communities: 'Communities',
   gatherings: 'Gatherings',
   projects: 'Projects',
@@ -211,7 +214,7 @@ export function Layout({ children, page }: { children: ReactNode; page: PageName
         {[
           { page: 'home' as PageName, label: 'Home', icon: 'home' as IconName },
           { page: 'network' as PageName, label: 'Network', icon: 'network' as IconName },
-          { page: 'communities' as PageName, label: 'Communities', icon: 'community' as IconName },
+          { page: 'connect' as PageName, label: 'Connect', icon: 'link' as IconName },
           { page: 'knowledge' as PageName, label: 'Knowledge', icon: 'knowledge' as IconName },
         ].map((item) => (
           <Link
@@ -226,7 +229,7 @@ export function Layout({ children, page }: { children: ReactNode; page: PageName
         ))}
         <button
           type="button"
-          className={`mobile-nav-link${['projects', 'gatherings', 'places', 'nodal-locations', 'settings', 'appearance', 'about'].includes(page) ? ' is-active' : ''}`}
+          className={`mobile-nav-link${['communities', 'projects', 'gatherings', 'places', 'nodal-locations', 'settings', 'appearance', 'about'].includes(page) ? ' is-active' : ''}`}
           onClick={() => setMoreOpen(true)}
           aria-haspopup="dialog"
         >

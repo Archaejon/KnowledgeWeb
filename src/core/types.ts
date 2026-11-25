@@ -41,6 +41,37 @@ export interface Person {
   /** Whether this person appears in member directories. Defaults to false. */
   directoryOptIn: boolean;
   isSample?: boolean;
+  /**
+   * Real Ed25519 public key (base64url, raw 32 bytes) for a node owner created
+   * with "Create your node", or for a remote peer. Absent on simulated people.
+   */
+  publicKey?: string;
+  /** True for a person who lives on another node and reached this one over a live connection. */
+  remote?: boolean;
+}
+
+/**
+ * Live peer link carried by a relationship made through an invite link. The
+ * room secret is shared only between the two nodes; it names the WebRTC
+ * meeting room and encrypts its signalling.
+ */
+export interface PeerLink {
+  room: string;
+  /** The partner's public key; every connection must prove possession of it. */
+  partnerKey: string;
+  lastSyncAt?: string;
+  /** Set after a local revocation until the partner has been told. */
+  revokeNoticePending?: boolean;
+}
+
+/** An invite link this node has created. */
+export interface PeerInvite {
+  id: string;
+  room: string;
+  createdAt: string;
+  message?: string;
+  status: 'open' | 'used' | 'cancelled';
+  usedBy?: string;
 }
 
 export interface Membership {
@@ -92,9 +123,11 @@ export interface PersonRelationship {
   revokedBy?: string;
   /**
    * Local-only record of whether this node holds cached copies from this
-   * relationship. The prototype never stores remote copies, so this stays false.
+   * relationship. True while records received over a live peer link are held.
    */
   cachedCopiesHeld: boolean;
+  /** Present when the relationship was made over a live peer connection. */
+  peer?: PeerLink;
 }
 
 export interface GroupAgreementResponse {
@@ -386,7 +419,9 @@ export type ConsentEventKind =
   | 'agreement-proposed'
   | 'agreement-accepted'
   | 'agreement-declined'
-  | 'record-deleted';
+  | 'record-deleted'
+  | 'peer-invite-created'
+  | 'peer-invite-cancelled';
 
 /**
  * Audit trail of consent changes. Deliberately contains no private content —
@@ -434,6 +469,8 @@ export interface NodeIdentity {
   softwareVersion: string;
   /** True when the node is a local browser prototype rather than a server node. */
   prototype: boolean;
+  /** Person ID of the node owner when the node has a real key pair. */
+  ownerId?: string;
 }
 
 export interface NodeData {
@@ -450,6 +487,8 @@ export interface NodeData {
   projects: Project[];
   gatherings: Gathering[];
   consentLog: ConsentEvent[];
+  /** Invite links created on this node. Optional so older nodes still load. */
+  invites?: PeerInvite[];
 }
 
 export interface PersistedState {

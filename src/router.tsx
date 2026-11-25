@@ -4,6 +4,7 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react';
 export const PAGES = [
   'home',
   'network',
+  'connect',
   'communities',
   'gatherings',
   'projects',
