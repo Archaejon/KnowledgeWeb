@@ -56,7 +56,7 @@ git tag -a v0.1.0 -m "Understory 0.1.0"
 git push origin main --follow-tags
 ```
 
-Create the release for the tag on Codeberg (repository → releases → new release)
+Create the release for the tag on GitHub (repository → Releases → Draft a new release)
 and paste the matching changelog section as the body. Release notes repeat the
 prototype boundary: simulated identities, no transport, no encryption at rest.
 
@@ -68,26 +68,18 @@ run Node.
 ## Publishing the build
 
 The build has relative asset URLs and hash routing, so it runs from a domain root
-or a subpath without rebuilding. For a Codeberg Pages project site the files go
-at the root of a `pages` branch, which is served at
-`https://<owner>.codeberg.page/<repo>/` — here
-<https://archaejon.codeberg.page/KnowledgeWeb/>.
+or a subpath without rebuilding. CI publishes it: every push to `main` whose
+checks pass is deployed by the `deploy` job in
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) to the GitHub Pages
+project site <https://archaejon.github.io/KnowledgeWeb/>. The repository must be
+public (or on a paid plan) and **Settings → Pages → Source** must be
+**GitHub Actions**.
 
-```bash
-npm run build
-git worktree add ../understory-pages --orphan pages   # first publish only
-cp -r dist/. ../understory-pages/
-git -C ../understory-pages add -A
-git -C ../understory-pages commit -m "Publish 0.1.0"
-git -C ../understory-pages push origin pages
-```
+To publish by hand from another branch, run the workflow with
+**Actions → CI → Run workflow**; only `main` deploys.
 
-Later publishes reuse the worktree (`git worktree add ../understory-pages pages`)
-and replace its contents with the new `dist/`. The repository must be public for
-Pages to serve it. Codeberg's current alternative is the
-[`git-pages/action`](https://docs.codeberg.org/codeberg-pages/forgejo-actions/)
-from a Forgejo Actions workflow; this repository does not automate publishing yet,
-so a deployment only happens when someone runs the steps above.
+The project was first published on Codeberg (`archaejon.codeberg.page`); GitHub
+is now the primary home.
 
 ## After publishing
 
@@ -101,7 +93,7 @@ so a deployment only happens when someone runs the steps above.
 
 ## If a release is wrong
 
-Publishing the previous tag's build again is the rollback: the `pages` branch
-keeps its history, so `git revert` or a second publish from the older tag works.
+Publishing an earlier build again is the rollback: `git revert` the bad change
+on `main` and push, or re-run an earlier successful CI run's deploy job.
 Do not delete a tag that has been announced; publish a patch instead, so anyone
 who already has the old build sees a correction rather than a missing version.

@@ -5,13 +5,13 @@
   "type": "module",
   "description": "Understory — a local-first, consent-based knowledge exchange node for real-world communities",
   "license": "AGPL-3.0-or-later",
-  "homepage": "https://codeberg.org/Archaejon/KnowledgeWeb#readme",
+  "homepage": "https://github.com/Archaejon/KnowledgeWeb#readme",
   "repository": {
     "type": "git",
-    "url": "https://codeberg.org/Archaejon/KnowledgeWeb.git"
+    "url": "https://github.com/Archaejon/KnowledgeWeb.git"
   },
   "bugs": {
-    "url": "https://codeberg.org/Archaejon/KnowledgeWeb/issues"
+    "url": "https://github.com/Archaejon/KnowledgeWeb/issues"
   },
   "engines": {
     "node": ">=20"

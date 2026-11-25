@@ -57,7 +57,7 @@ chrome --remote-debugging-port=9223 \
 ## Build check
 
 `serve-dist.mjs` is not an audit. It serves `dist/` under a subpath so the
-production build can be checked the way a Codeberg Pages project site serves it,
+production build can be checked the way a GitHub Pages project site serves it,
 including the router, the route chunks, the favicon and the manifest:
 
 ```bash

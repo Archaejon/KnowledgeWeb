@@ -36,6 +36,9 @@ identities, transport and encryption exist.
 
 ### Changed
 
+- The project moved from Codeberg to GitHub: CI runs on GitHub Actions, and
+  every green push to `main` is published to GitHub Pages at
+  <https://archaejon.github.io/KnowledgeWeb/>.
 - Node data now lives in IndexedDB instead of localStorage. Attachments grow
   from 3 MB to 40 MB for the whole node, 8 MB per file and 12 MB per record.
   A node saved under the old localStorage key is moved across on first start,
@@ -104,5 +107,5 @@ node. Identities, transport and keys are still simulated; see
   kept, the original is left untouched.
 - The About page linked to a data-model document that does not exist.
 
-[Unreleased]: https://codeberg.org/Archaejon/KnowledgeWeb/compare/v0.1.0...main
-[0.1.0]: https://codeberg.org/Archaejon/KnowledgeWeb/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Archaejon/KnowledgeWeb/compare/v0.1.0...main
+[0.1.0]: https://github.com/Archaejon/KnowledgeWeb/releases/tag/v0.1.0

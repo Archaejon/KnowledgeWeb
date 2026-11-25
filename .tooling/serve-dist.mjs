@@ -1,5 +1,5 @@
 // Serves dist/ under a subpath so the production build can be checked the way a
-// Codeberg Pages project site serves it: https://<user>.codeberg.page/<repo>/
+// GitHub Pages project site serves it: https://<user>.github.io/<repo>/
 //
 //   node .tooling/serve-dist.mjs            # serve for manual checking
 //   node .tooling/serve-dist.mjs --check    # verify the artifact and exit
