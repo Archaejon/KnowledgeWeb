@@ -11,6 +11,9 @@ export default defineConfig({
   // One source of truth for the version the interface reports.
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   build: { sourcemap: false },
+  // The audit harness keeps browser profiles and logs in .tooling/; watching them
+  // made the dev server reload whenever a probe browser touched its profile.
+  server: { watch: { ignored: ['**/.tooling/**'] } },
   test: {
     globals: true,
     environment: 'node',
