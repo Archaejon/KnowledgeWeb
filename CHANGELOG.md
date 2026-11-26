@@ -21,6 +21,9 @@ identities, transport and encryption exist.
   sides. See [docs/live-connections.md](docs/live-connections.md).
 - **Connect** in the navigation, including the mobile bar (Communities moves
   under **More** on phones).
+- The Connect page shows how many signalling relays are reachable, warns when
+  none are, says whether a waiting partner is online, and offers a short
+  "Not connecting?" checklist.
 
 <!-- The two storage entries below describe work built in October whose source
      is being recovered; it is not yet in this branch. -->
@@ -49,6 +52,10 @@ identities, transport and encryption exist.
 
 ### Fixed
 
+- Connections now use a pinned list of working Nostr relays. Trystero's default
+  pick for this app included two relays that no longer respond.
+- The sidebar says "Your node" when acting as your own node, and "Acting as ·
+  demo" only for fictional demo people.
 - The dev server no longer reloads when audit browsers write to `.tooling/`.
 - A storage write that fails asynchronously is reported in the storage banner
   instead of being lost, and the saved time only advances once the write has

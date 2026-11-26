@@ -48,7 +48,11 @@ transport runs the real handshake between two nodes).
 - No TURN server: some strict corporate or mobile networks block direct
   connections, and the link will stay offline.
 - Public Nostr relays see that two browsers met in a room and when, though not
-  the content. Some public relays are flaky; trystero uses several at once.
+  the content. Every node uses the same pinned list of six relays
+  (`RELAY_URLS` in `src/core/peer/transport.ts`), each checked on 2026-11-26
+  with an ephemeral-event round trip. Two browsers only meet if they share a
+  working relay, so changing the list is a compatibility change between app
+  versions. The Connect page shows how many relays are reachable.
 - Only knowledge records travel. Communities, gatherings, projects, places and
   observations stay local. Attachments travel but are dropped if they would
   exceed this node's browser-storage budget.

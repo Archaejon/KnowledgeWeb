@@ -31,6 +31,79 @@ function errorText(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+type RelayHealth = { open: number; total: number };
+
+/**
+ * Polls how many signalling relays this browser can reach. Only runs while
+ * the node is waiting for someone (an open invite or a connection), so the
+ * transport chunk is never loaded just to show this.
+ */
+function useRelayHealth(active: boolean): RelayHealth | undefined {
+  const [health, setHealth] = useState<RelayHealth>();
+  useEffect(() => {
+    if (!active) {
+      setHealth(undefined);
+      return;
+    }
+    let live = true;
+    let timer: number | undefined;
+    void import('../core/peer/transport').then((transport) => {
+      const tick = () => live && setHealth(transport.relayHealth());
+      tick();
+      timer = window.setInterval(tick, 3000);
+    });
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+    };
+  }, [active]);
+  return health;
+}
+
+function SignalStatus() {
+  const { snapshot } = useApp();
+  const { state } = usePeers();
+  const data = snapshot.data;
+  const waiting =
+    state.status.kind === 'ready' &&
+    ((data.invites ?? []).some((i) => i.status === 'open') ||
+      data.relationships.some((r) => r.peer && (r.status === 'active' || r.status === 'pending')));
+  const health = useRelayHealth(waiting);
+  if (!waiting || !health || health.total === 0) return null;
+  if (health.open === 0) {
+    return (
+      <Notice tone="warn" icon="network" title="Can’t reach the meeting points">
+        None of the {health.total} public relays your browser uses to find your friend are reachable. Check your internet
+        connection, and turn off any ad blocker, VPN or firewall rule that blocks secure WebSockets for this page.
+      </Notice>
+    );
+  }
+  return (
+    <p className="muted small" role="status">
+      <Icon name="network" size={13} /> Listening for your connections · {health.open} of {health.total} meeting points
+      reachable
+    </p>
+  );
+}
+
+function Troubleshooting({ open }: { open?: boolean }) {
+  return (
+    <details className="small" open={open}>
+      <summary>Not connecting?</summary>
+      <ul>
+        <li>Both of you need this page open at the same time. Leave the tab open; it connects on its own within a minute.</li>
+        <li>Reload the page on both sides if nothing happens after a couple of minutes.</li>
+        <li>
+          Some networks block direct browser connections: office or school wifi, some mobile carriers and VPNs. Try a home
+          wifi or a phone hotspot on one side.
+        </li>
+        <li>Ad blockers and privacy extensions can block the relays. Try a private window without extensions.</li>
+        <li>Use a recent Chrome, Edge, Firefox or Safari. Each browser and profile is a separate node.</li>
+      </ul>
+    </details>
+  );
+}
+
 export function ConnectPage({ token }: { token?: string }) {
   const { snapshot } = useApp();
   const { state } = usePeers();
@@ -74,6 +147,8 @@ export function ConnectPage({ token }: { token?: string }) {
           forInvite={Boolean(invite.payload)}
         />
       ) : null}
+
+      {status === 'ready' ? <SignalStatus /> : null}
 
       {status === 'ready' ? (
         <div className="two-col">
@@ -221,6 +296,7 @@ function InviteCard({ invite }: { invite: InvitePayload }) {
         {state.online[relationship.peer!.room]
           ? `${invite.name} is online and has been asked to confirm it is you.`
           : `Keep this page open. As soon as ${invite.name} opens Understory, they will be asked to confirm it is you.`}
+        {state.online[relationship.peer!.room] ? null : <Troubleshooting />}
       </Notice>
     );
   } else {
@@ -466,7 +542,12 @@ function ConnectionsCard() {
           };
     }
     if (rel.status === 'pending') {
-      return { badge: <Badge tone="warning">Waiting</Badge>, sub: `Waiting for ${name} to confirm it is you.` };
+      return {
+        badge: <Badge tone="warning">Waiting</Badge>,
+        sub: online
+          ? `${name} is online and has been asked to confirm it is you.`
+          : `Waiting for ${name} to open Understory and confirm it is you.`,
+      };
     }
     return {
       badge: <Badge tone="danger">Ended</Badge>,
@@ -518,6 +599,9 @@ function ConnectionsCard() {
           })}
         </ul>
       )}
+      {peers.some((rel) => (rel.status === 'active' || rel.status === 'pending') && !state.online[rel.peer!.room]) ? (
+        <Troubleshooting />
+      ) : null}
       <ConfirmDialog
         open={Boolean(revoking)}
         onClose={() => setRevoking(undefined)}

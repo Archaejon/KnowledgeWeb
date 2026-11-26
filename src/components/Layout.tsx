@@ -140,7 +140,9 @@ export function Layout({ children, page }: { children: ReactNode; page: PageName
           <Link to="settings" className="acting-as">
             <Avatar name={actor?.name ?? 'You'} size="sm" />
             <span className="acting-as-text">
-              <span className="acting-as-label">Acting as · demo</span>
+              <span className="acting-as-label">
+                {actor && actor.id === data.node.ownerId ? 'Your node' : actor?.isSample ? 'Acting as · demo' : 'Acting as'}
+              </span>
               <span className="acting-as-name">{actor?.name ?? 'Unknown'}</span>
             </span>
             <Icon name="settings" size={15} />
